@@ -1,51 +1,120 @@
 <!---
 {
-  "depends_on": [],
+  "depends_on": ["https://github.com/STEMgraph/116c995e-c4b7-40f5-b84f-068474bbb87c"],
   "author": "Stephan Bökelmann",
-  "first_used": "2025-03-17",
-  "keywords": ["learning", "exercises", "education", "practice"]
+  "first_used": "2025-04-01",
+  "keywords": ["NASM", "syscall", "read", "write", "file descriptor", "ASCII", "Linux"]
 }
 --->
 
-# Learning Through Exercises
+# Reading, Modifying, and Printing a Character with NASM
 
 ## 1) Introduction
-Learning by doing is one of the most effective methods to acquire new knowledge and skills. Rather than passively consuming information, actively engaging in problem-solving fosters deeper understanding and long-term retention. By working through structured exercises, students can grasp complex concepts in a more intuitive and applicable way. This approach is particularly beneficial in technical fields like programming, mathematics, and engineering.
 
-### 1.1) Further Readings and Other Sources
-- [The Importance of Practice in Learning](https://www.sciencedirect.com/science/article/pii/S036013151300062X)
-- "The Art of Learning" by Josh Waitzkin
-- [How to Learn Effectively: 5 Key Strategies](https://www.edutopia.org/article/5-research-backed-learning-strategies)
+In [previous exercises](https://github.com/STEMgraph/116c995e-c4b7-40f5-b84f-068474bbb87c), we learned how to exit a program and print text using the `write` syscall. Now, we’ll add a new system call to the mix: `read`.
+
+This time, your program will:
+
+1. Open a file (`./assets/data`)
+2. Read a single byte
+3. Increment the ASCII value of that byte
+4. Write the result to the terminal
+
+This is a great introduction to **file I/O** and **basic data manipulation** in assembly.
+
+---
+
+## Required Syscalls
+
+| Syscall     | Number | Purpose       |
+|-------------|--------|---------------|
+| `open`      | 2      | Open a file   |
+| `read`      | 0      | Read from a file descriptor |
+| `write`     | 1      | Write to a file descriptor  |
+| `exit`      | 60     | Exit program  |
+
+For `open`, you need to pass a pointer to the filename and a flag (`O_RDONLY = 0`).
+
+---
+
+## Example Code Skeleton
+
+```nasm
+section .data
+    path    db "./assets/data", 0
+    buffer  db 0               ; space to store the read byte
+
+section .text
+    global _start
+
+_start:
+    ; open(path, O_RDONLY)
+    mov     rax, 2              ; syscall: open
+    mov     rdi, path           ; filename
+    xor     rsi, rsi            ; flags = O_RDONLY
+    syscall
+    mov     r12, rax            ; save file descriptor
+
+    ; read(fd, buffer, 1)
+    mov     rax, 0              ; syscall: read
+    mov     rdi, r12            ; file descriptor
+    mov     rsi, buffer         ; destination
+    mov     rdx, 1              ; read 1 byte
+    syscall
+
+    ; increment ASCII value
+    inc     byte [buffer]
+
+    ; write(stdout, buffer, 1)
+    mov     rax, 1              ; syscall: write
+    mov     rdi, 1              ; stdout
+    mov     rsi, buffer         ; pointer to data
+    mov     rdx, 1              ; length = 1
+    syscall
+
+    ; exit(0)
+    mov     rax, 60
+    xor     rdi, rdi
+    syscall
+```
+
+Make sure the file `./assets/data` exists and contains exactly **1 ASCII character**.
+
+---
 
 ## 2) Tasks
-1. **Write a Summary**: Summarize the concept of "learning by doing" in 3-5 sentences.
-2. **Example Identification**: List three examples from your own experience where learning through exercises helped you understand a topic better.
-3. **Create an Exercise**: Design a simple exercise for a topic of your choice that someone else could use to practice.
-4. **Follow an Exercise**: Find an online tutorial that includes exercises and complete at least two of them.
-5. **Modify an Existing Exercise**: Take a basic problem from a textbook or online course and modify it to make it slightly more challenging.
-6. **Pair Learning**: Explain a concept to a partner and guide them through an exercise without giving direct answers.
-7. **Review Mistakes**: Look at an exercise you've previously completed incorrectly. Identify why the mistake happened and how to prevent it in the future.
-8. **Time Challenge**: Set a timer for 10 minutes and try to solve as many simple exercises as possible on a given topic.
-9. **Self-Assessment**: Create a checklist to evaluate your own performance in completing exercises effectively.
-10. **Reflect on Progress**: Write a short paragraph on how this structured approach to exercises has influenced your learning.
 
-<details>
-  <summary>Tip for Task 5</summary>
-  Try making small adjustments first, such as increasing the difficulty slightly or adding an extra constraint.
-</details>
+1. **Set Up File**: Create the file `./assets/data` and insert a single character like `A`.
+2. **Assemble and Run**: Build the assembly program and run it. You should see the next ASCII character (e.g., `B`).
+3. **Test Edge Cases**: What happens with `Z`, `9`, or `~`?
+4. **Try Reading More**: Modify the buffer to read 2 bytes and print both incremented.
+
+---
 
 ## 3) Questions
-1. What are the main benefits of learning through exercises compared to passive learning?
-2. How do exercises improve long-term retention?
-3. Can you think of a subject where learning through exercises might be less effective? Why?
-4. What role does feedback play in learning through exercises?
-5. How can self-designed exercises improve understanding?
-6. Why is it beneficial to review past mistakes in exercises?
-7. How does explaining a concept to someone else reinforce your own understanding?
-8. What strategies can you use to stay motivated when practicing with exercises?
-9. How can timed challenges contribute to learning efficiency?
-10. How do exercises help bridge the gap between theory and practical application?
+
+1. What is the file descriptor returned by `open`? Why do we save it in `r12`?
+2. Why do we pass `0` as the second argument to `open()`?
+3. How would you read more than one byte and increment each?
+4. What happens if the file doesn’t exist?
+5. What’s the difference between ASCII `'A' + 1` and ASCII `'9' + 1`?
+
+<details>
+  <summary>Hint: ASCII Table</summary>
+
+  Use [ASCII Table Reference](https://www.asciitable.com/) to understand what values you're manipulating.
+</details>
+
+---
 
 ## 4) Advice
-Practice consistently and seek out diverse exercises that challenge different aspects of a topic. Combine exercises with reflection and feedback to maximize your learning efficiency. Don't hesitate to adapt exercises to fit your own needs and ensure that you're actively engaging with the material, rather than just going through the motions.
 
+File I/O and byte manipulation are fundamental tasks in systems programming. Unlike high-level languages, assembly leaves no room for assumptions — every step must be precise. Always check your syscall numbers, registers, and memory layout.
+
+Also, get into the habit of creating your own minimal test files. The Linux shell is your best friend here:
+
+```bash
+echo -n A > ./assets/data
+```
+
+Let me know if you want a version with error checking or a follow-up that handles more than one byte!
